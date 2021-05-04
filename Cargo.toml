@@ -1,0 +1,7 @@
+[package]
+name = "least"
+version = "0.1.0"
+authors = ["classabbyamp <dev@kb6.ee>", "0x5c <dev@0x5c.io>"]
+edition = "2018"
+
+[dependencies]
