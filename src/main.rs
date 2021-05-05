@@ -3,7 +3,10 @@
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
 
-extern crate clap;
+use std::{fs::File, io::BufRead};
+use std::io::{BufReader, stdin};
+use std::path::Path;
+
 use clap::{Arg, App};
 
 fn main() {
@@ -17,8 +20,48 @@ fn main() {
                       .help("file to display"))
                  .get_matches();
 
-    match m.value_of("FILE") {
-        Some(f) => println!("Using input file: {}", f),
-        None => println!("Using stdin")
+    match get_path(m.value_of("FILE")) {
+        Some(p) => process_file(&p),
+        None => process_stdin()
     };
+}
+
+fn get_path(s: Option<&str>) -> Option<&Path> {
+    match s {
+        Some(p) if p != "-" => Some(&Path::new(p)),
+        Some(_) => None,
+        None => None
+    }
+}
+
+fn process_file(path: &Path) {
+    let buffer = BufReader::new(match File::open(path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    });
+    for line in buffer.lines() {
+        match line {
+            Ok(s) => println!("{}", s),
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+    }
+}
+
+fn process_stdin() {
+    let input = stdin();
+    for line in input.lock().lines() {
+        match line {
+            Ok(s) => println!("{}", s),
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+    }
 }
