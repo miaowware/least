@@ -3,28 +3,61 @@
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
 
-use std::{fs::File, io::BufRead};
-use std::io::{BufReader, stdin};
-use std::io::Error as IOError;
+use std::fs::File;
+use std::io::{
+    BufReader, stdin, stdout
+};
 use std::path::Path;
 
 use clap::{Arg, App};
+use crossterm::{
+    Result, tty::IsTty,
+};
 
-fn main() {
+mod passthrough;
+mod pager;
+mod buffer;
+mod errfmt;
+
+fn main() -> Result<()> {
     let m = App::new(clap::crate_name!())
                  .version(clap::crate_version!())
                  .author(clap::crate_authors!(", "))
                  .about(clap::crate_description!())
+                 .arg(Arg::with_name("NOPAGE")
+                      .long("no-page")
+                      .takes_value(false)
+                      .required(false)
+                      .help("Don't page output. Useful for passing text through least"))
                  .arg(Arg::with_name("FILE")
                       .takes_value(true)
                       .required(false)
-                      .help("file to display"))
+                      .help("File to display"))
                  .get_matches();
 
     match get_path(m.value_of("FILE")) {
-        Some(p) => process_file(&p),
-        None => process_stdin()
+        Some(p) => {
+            let input = BufReader::new(match File::open(p) {
+                Ok(f) => f,
+                Err(e) => errfmt::print_err_exit(e, 1),
+            });
+            if !m.is_present("NOPAGE") && stdout().is_tty() {
+                pager::run_pager(input)?;
+            } else {
+                passthrough::run_passthrough(input)?;
+            }
+        },
+        None => {
+            let input = stdin();
+            if !m.is_present("NOPAGE") && stdout().is_tty() {
+                pager::run_pager(input.lock())?;
+            } else {
+                passthrough::run_passthrough(input.lock())?;
+            }
+        },
     };
+
+    Ok(())
 }
 
 fn get_path(s: Option<&str>) -> Option<&Path> {
@@ -32,33 +65,4 @@ fn get_path(s: Option<&str>) -> Option<&Path> {
         Some(p) if p != "-" => Some(&Path::new(p)),
         Some(_) | None => None,
     }
-}
-
-fn process_file(path: &Path) {
-    let buffer = BufReader::new(match File::open(path) {
-        Ok(f) => f,
-        Err(e) => print_io_error_and_exit(e, 1),
-    });
-    for line in buffer.lines() {
-        match line {
-            Ok(s) => println!("{}", s),
-            Err(e) => print_io_error_and_exit(e, 1),
-        };
-    }
-}
-
-fn process_stdin() {
-    let input = stdin();
-    for line in input.lock().lines() {
-        match line {
-            Ok(s) => println!("{}", s),
-            Err(e) => print_io_error_and_exit(e, 1),
-        };
-    }
-}
-
-//? This maybe should be generalised/macroised in the future
-fn print_io_error_and_exit(error: IOError, code: i32) -> ! {
-    eprintln!("{}", error);
-    std::process::exit(code);
 }
