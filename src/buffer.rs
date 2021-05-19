@@ -1,4 +1,4 @@
-// least
+// least - buffer.rs
 // ---
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
@@ -22,7 +22,7 @@ pub struct PagerBuffer {
 }
 
 impl PagerBuffer {
-    /// returns the `length` of the internal buffer `lines`
+    /// shortcut to the `length` of the internal buffer `lines`
     pub fn len(&self) -> usize {
         self.lines.len()
     }
