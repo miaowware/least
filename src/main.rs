@@ -18,6 +18,7 @@ mod passthrough;
 mod pager;
 mod buffer;
 mod errfmt;
+mod events;
 
 fn main() -> Result<()> {
     let m = App::new(clap::crate_name!())
@@ -28,7 +29,7 @@ fn main() -> Result<()> {
                       .long("no-page")
                       .takes_value(false)
                       .required(false)
-                      .help("Don't page output. Useful for passing text through least"))
+                      .help("Don't page output. Useful for passing text through least.\nDefault if stdout is not a TTY."))
                  .arg(Arg::with_name("FILE")
                       .takes_value(true)
                       .required(false)

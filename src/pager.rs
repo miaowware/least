@@ -11,13 +11,9 @@ use crossterm::{ExecutableCommand, Result, queue,
         MoveToNextLine,
         MoveTo,
     },
-    event::{
+    event,
+    terminal::{
         self,
-        Event,
-        KeyEvent,
-        KeyCode,
-        KeyModifiers,
-    }, terminal, terminal::{
         EnterAlternateScreen,
         LeaveAlternateScreen,
         enable_raw_mode,
@@ -26,7 +22,11 @@ use crossterm::{ExecutableCommand, Result, queue,
         ClearType,
     }};
 
-use crate::buffer;
+use crate::{buffer,
+    events::{
+        process_event,
+        LeastEvent,
+    }};
 
 pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
     let _dummy_buffer: Vec<String> = (0..200).map(|x| format!("{:<3}.#", x)+"....#".repeat(30).as_str()).collect();
@@ -38,11 +38,6 @@ pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
     };
 
     let mut stdout = stdout();
-    let quit_key = KeyEvent{code: KeyCode::Char('q'), modifiers: KeyModifiers::NONE};
-    let up_key = KeyEvent{code: KeyCode::Up, modifiers: KeyModifiers::NONE};
-    let down_key = KeyEvent{code: KeyCode::Down, modifiers: KeyModifiers::NONE};
-    let left_key = KeyEvent{code: KeyCode::Left, modifiers: KeyModifiers::NONE};
-    let right_key = KeyEvent{code: KeyCode::Right, modifiers: KeyModifiers::NONE};
 
     init_terminal(&mut stdout)?;
 
@@ -52,24 +47,43 @@ pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
     // We only do something when we get an event, like keypresses and terminal resizing
     // In the meantime, `read()` is blocking.
     loop {
-        match event::read()? {
-            Event::Key(ev) if ev == quit_key => break,
-            Event::Key(ev) if ev == up_key => {
-                draw_screen(&mut stdout, buf.scroll(1, buffer::Direction::Up).compute_screen(terminal::size()?))?;
+        match process_event(event::read()?) {
+            LeastEvent::Exit => break,
+            LeastEvent::ScrollUp => {
+                draw_screen(
+                    &mut stdout,
+                    buf.scroll(1, buffer::Direction::Up)
+                       .compute_screen(terminal::size()?)
+                )?;
             },
-            Event::Key(ev) if ev == down_key => {
-                draw_screen(&mut stdout, buf.scroll(1, buffer::Direction::Down).compute_screen(terminal::size()?))?;
+            LeastEvent::ScrollDown => {
+                draw_screen(
+                    &mut stdout,
+                    buf.scroll(1, buffer::Direction::Down)
+                       .compute_screen(terminal::size()?)
+                )?;
             },
-            Event::Key(ev) if ev == left_key => {
-                draw_screen(&mut stdout, buf.scroll(1, buffer::Direction::Left).compute_screen(terminal::size()?))?;
+            LeastEvent::ScrollLeft => {
+                draw_screen(
+                    &mut stdout,
+                    buf.scroll(1, buffer::Direction::Left)
+                       .compute_screen(terminal::size()?)
+                )?;
             },
-            Event::Key(ev) if ev == right_key => {
-                draw_screen(&mut stdout, buf.scroll(1, buffer::Direction::Right).compute_screen(terminal::size()?))?;
+            LeastEvent::ScrollRight => {
+                draw_screen(
+                    &mut stdout,
+                    buf.scroll(1, buffer::Direction::Right)
+                       .compute_screen(terminal::size()?)
+                )?;
             },
-            Event::Key(ev) => write!(&mut stdout, "Key: {:?}", ev)?,
-            Event::Mouse(ev) => write!(&mut stdout, "Mouse: {:?}", ev)?,
-            Event::Resize(w, h) => write!(&mut stdout, "Resize: {}x{}", w, h)?,
-            // Event::Resize(w, h) => draw_screen(buf.compute_screen((w, h)))?,
+            LeastEvent::Resize(w, h) => {
+                draw_screen(
+                    &mut stdout,
+                    buf.compute_screen((w, h))
+                )?;
+            }
+            _ => {},
         };
         stdout.flush()?;
     }
