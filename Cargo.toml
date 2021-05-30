@@ -1,7 +1,7 @@
 [package]
 name = "least"
 description = "A simple terminal pager"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["classabbyamp <dev@kb6.ee>", "0x5c <dev@0x5c.io>"]
 edition = "2018"
 
