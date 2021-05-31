@@ -3,10 +3,12 @@
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
 
-use std::io::{
-    BufRead, Write, stdout, Stdout
+use std::{
+    io::{BufRead, Write, stdin, stdout, Stdout, BufReader},
+    path::Path,
 };
-use crossterm::{ExecutableCommand, Result, queue,
+
+use crossterm::{ExecutableCommand, queue,
     cursor::{
         MoveToNextLine,
         MoveTo,
@@ -22,13 +24,17 @@ use crossterm::{ExecutableCommand, Result, queue,
         ClearType,
     }};
 
-use crate::{buffer,
+use crate::{
+    buffer,
+    error::Result,
     events::{
         process_event,
         LeastEvent,
-    }};
+    }
+};
 
-pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
+/// **Pager init and main loop**
+fn do_pager<T: BufRead + Sized>(input: T) -> Result<()> {
     let _dummy_buffer: Vec<String> = (0..200).map(|x| format!("{:<3}.#", x)+"....#".repeat(30).as_str()).collect();
     let mut buf = buffer::PagerBuffer{
         // TODO: Only get a certain number of lines
@@ -39,13 +45,12 @@ pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
 
     let mut stdout = stdout();
 
-    init_terminal(&mut stdout)?;
-
+    // First paint
     draw_screen(&mut stdout, buf.compute_screen(terminal::size()?))?;
 
     // The main application loop
     // We only do something when we get an event, like keypresses and terminal resizing
-    // In the meantime, `read()` is blocking.
+    // TODO: `read()` is currently blocking.
     loop {
         match process_event(event::read()?) {
             LeastEvent::Exit => break,
@@ -88,8 +93,6 @@ pub fn run_pager<T: BufRead + Sized>(input: T) -> Result<()> {
         stdout.flush()?;
     }
 
-    deinit_terminal(&mut stdout)?;
-
     Ok(())
 }
 
@@ -105,25 +108,46 @@ fn draw_screen(stdout: &mut Stdout, lines: Vec<String>) -> Result<()> {
     Ok(())
 }
 
+/// **Terminal initialisation**
+///
+/// This enables raw mode and switches to the alternate buffer.
+/// This also adds a panic handler to ensure deinitialisation.
 fn init_terminal(stdout: &mut Stdout) -> Result<()> {
     stdout.execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
-    //stdout.execute(Hide)?;
 
     // add a hook to panic! to deinitialise the terminal
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let mut out = std::io::stdout();
-        deinit_terminal(&mut out).unwrap_or(());
+        deinit_terminal(&mut out);
         default_panic(info);
     }));
 
     Ok(())
 }
 
-fn deinit_terminal(stdout: &mut Stdout) -> Result<()> {
-    disable_raw_mode()?;
-    stdout.execute(LeaveAlternateScreen)?;
+/// **Returns the terminal to normal modes**
+///
+/// No return value/result since this essentially can't be
+/// reached in a situation where it would fail.
+pub fn deinit_terminal(stdout: &mut Stdout) {
+    let _ = disable_raw_mode();
+    let _ = stdout.execute(LeaveAlternateScreen);
+}
 
-    Ok(())
+/// **Pager entrypoint**
+pub fn run(source: Option<&Path>) -> Result<()> {
+    let mut stdout = stdout();
+    match source {
+        Some(p) => {
+            init_terminal(&mut stdout)?;
+            do_pager(BufReader::new(std::fs::File::open(p)?))
+        },
+        None => {
+            let input = stdin();
+            init_terminal(&mut stdout)?;
+            do_pager(input.lock())
+        }
+    }
 }
