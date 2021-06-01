@@ -9,7 +9,28 @@ on:
 name: Create Release
 
 jobs:
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@master
+        with:
+          ref: ${{ github.ref }}
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: login
+          args: ${{ secrets.CRATES_TOKEN }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --locked
+
   release:
+    needs: publish
     name: Create Release
     runs-on: ubuntu-20.04
     steps:
