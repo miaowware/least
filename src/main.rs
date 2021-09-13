@@ -6,17 +6,18 @@
 use std::io::stdin;
 
 use crossterm::{
-    tty::IsTty,
     style::{
-        style, Color,
+        Color,
+        Stylize,
+        style
     },
+    tty::IsTty
 };
 
 mod passthrough;
 mod pager;
 mod buffer;
 mod events;
-mod error;
 
 fn main() {
     let app = clap::App::new(clap::crate_name!())
@@ -67,14 +68,14 @@ fn main() {
         Ok(_) => std::process::exit(0),
         Err(kind) => {
             let (text, code) = match kind {
-                error::ErrorKind::Io(e) => (
-                    format!("I/O error occurred: {}", e),
-                    2
-                ),
-                error::ErrorKind::Fmt => (
-                    String::from("Formatting error occurred"),
-                    3
-                ),
+                // error::ErrorKind::Io(e) => (
+                //     format!("I/O error occurred: {}", e),
+                //     2
+                // ),
+                // error::ErrorKind::Fmt => (
+                //     String::from("Formatting error occurred"),
+                //     3
+                // ),
                 _ => (
                     String::from("Unexpected error occurred"),
                     42

@@ -3,12 +3,17 @@
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
 
+use std::time::Duration;
+
+use anyhow;
 use crossterm::event::{
     Event,
     KeyEvent,
     KeyCode,
     KeyModifiers,
     MouseEventKind,
+    read,
+    poll,
 };
 
 pub enum LeastEvent {
@@ -20,6 +25,8 @@ pub enum LeastEvent {
     Nop,
     Resize(u16, u16),
 }
+
+pub const POLL_DURATION: Duration = Duration::from_micros(200);
 
 pub fn process_event(ev: Event) -> LeastEvent {
     // TODO: this shouldn't be hard-coded
@@ -44,5 +51,13 @@ pub fn process_event(ev: Event) -> LeastEvent {
             _ => LeastEvent::Nop,
         },
         Event::Resize(w, h) => LeastEvent::Resize(w, h),
+    }
+}
+
+pub fn get_raw_event() -> anyhow::Result<Option<Event>> {
+    if poll(POLL_DURATION)? {
+        Ok(Some(read()?))
+    } else {
+        Ok(None)
     }
 }

@@ -8,12 +8,12 @@ use std::{
     path::Path,
 };
 
+use anyhow;
 use crossterm::{ExecutableCommand, queue,
     cursor::{
         MoveToNextLine,
         MoveTo,
     },
-    event,
     terminal::{
         self,
         EnterAlternateScreen,
@@ -26,15 +26,15 @@ use crossterm::{ExecutableCommand, queue,
 
 use crate::{
     buffer,
-    error::Result,
     events::{
         process_event,
         LeastEvent,
+        get_raw_event,
     }
 };
 
 /// **Pager init and main loop**
-fn do_pager<T: BufRead + Sized>(input: T) -> Result<()> {
+fn do_pager<T: BufRead + Sized>(input: T) -> anyhow::Result<()> {
     let _dummy_buffer: Vec<String> = (0..200).map(|x| format!("{:<3}.#", x)+"....#".repeat(30).as_str()).collect();
     let mut buf = buffer::PagerBuffer{
         // TODO: Only get a certain number of lines
@@ -52,51 +52,58 @@ fn do_pager<T: BufRead + Sized>(input: T) -> Result<()> {
     // We only do something when we get an event, like keypresses and terminal resizing
     // TODO: `read()` is currently blocking.
     loop {
-        match process_event(event::read()?) {
-            LeastEvent::Exit => break,
-            LeastEvent::ScrollUp => {
-                draw_screen(
-                    &mut stdout,
-                    buf.scroll(1, buffer::Direction::Up)
-                       .compute_screen(terminal::size()?)
-                )?;
-            },
-            LeastEvent::ScrollDown => {
-                draw_screen(
-                    &mut stdout,
-                    buf.scroll(1, buffer::Direction::Down)
-                       .compute_screen(terminal::size()?)
-                )?;
-            },
-            LeastEvent::ScrollLeft => {
-                draw_screen(
-                    &mut stdout,
-                    buf.scroll(1, buffer::Direction::Left)
-                       .compute_screen(terminal::size()?)
-                )?;
-            },
-            LeastEvent::ScrollRight => {
-                draw_screen(
-                    &mut stdout,
-                    buf.scroll(1, buffer::Direction::Right)
-                       .compute_screen(terminal::size()?)
-                )?;
-            },
-            LeastEvent::Resize(w, h) => {
-                draw_screen(
-                    &mut stdout,
-                    buf.compute_screen((w, h))
-                )?;
-            }
-            _ => {},
-        };
+        let event = get_raw_event()?;
+
+        if let Some(ev) = event {
+            match process_event(ev) {
+                LeastEvent::Exit => break,
+                LeastEvent::ScrollUp => {
+                    draw_screen(
+                        &mut stdout,
+                        buf.scroll(1, buffer::Direction::Up)
+                           .compute_screen(terminal::size()?)
+                    )?;
+                },
+                LeastEvent::ScrollDown => {
+                    draw_screen(
+                        &mut stdout,
+                        buf.scroll(1, buffer::Direction::Down)
+                           .compute_screen(terminal::size()?)
+                    )?;
+                },
+                LeastEvent::ScrollLeft => {
+                    draw_screen(
+                        &mut stdout,
+                        buf.scroll(1, buffer::Direction::Left)
+                           .compute_screen(terminal::size()?)
+                    )?;
+                },
+                LeastEvent::ScrollRight => {
+                    draw_screen(
+                        &mut stdout,
+                        buf.scroll(1, buffer::Direction::Right)
+                           .compute_screen(terminal::size()?)
+                    )?;
+                },
+                LeastEvent::Resize(w, h) => {
+                    draw_screen(
+                        &mut stdout,
+                        buf.compute_screen((w, h))
+                    )?;
+                }
+                _ => {},
+            };
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+
         stdout.flush()?;
     }
 
     Ok(())
 }
 
-fn draw_screen(stdout: &mut Stdout, lines: Vec<String>) -> Result<()> {
+fn draw_screen(stdout: &mut Stdout, lines: Vec<String>) -> anyhow::Result<()> {
     queue!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
     let mut lns = lines.into_iter();
     write!(stdout, "{}", lns.next().unwrap_or(String::from("")))?;
@@ -112,7 +119,7 @@ fn draw_screen(stdout: &mut Stdout, lines: Vec<String>) -> Result<()> {
 ///
 /// This enables raw mode and switches to the alternate buffer.
 /// This also adds a panic handler to ensure deinitialisation.
-fn init_terminal(stdout: &mut Stdout) -> Result<()> {
+fn init_terminal(stdout: &mut Stdout) -> anyhow::Result<()> {
     stdout.execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
 
@@ -137,7 +144,7 @@ pub fn deinit_terminal(stdout: &mut Stdout) {
 }
 
 /// **Pager entrypoint**
-pub fn run(source: Option<&Path>) -> Result<()> {
+pub fn run(source: Option<&Path>) -> anyhow::Result<()> {
     let mut stdout = stdout();
     match source {
         Some(p) => {

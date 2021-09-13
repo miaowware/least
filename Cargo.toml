@@ -16,5 +16,6 @@ exclude = [
 ]
 
 [dependencies]
+anyhow = "1.0.43"
 clap = "2.33.3"
-crossterm = "0.19.0"
+crossterm = "0.21.0"
