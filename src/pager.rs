@@ -5,7 +5,6 @@
 
 use std::{
     io::{BufRead, Write, stdin, stdout, Stdout, BufReader},
-    path::Path,
 };
 
 use anyhow;
@@ -30,7 +29,7 @@ use crate::{
         process_event,
         LeastEvent,
         get_raw_event,
-    }
+    }, InputMode
 };
 
 /// **Pager init and main loop**
@@ -144,14 +143,14 @@ pub fn deinit_terminal(stdout: &mut Stdout) {
 }
 
 /// **Pager entrypoint**
-pub fn run(source: Option<&Path>) -> anyhow::Result<()> {
+pub fn run(source: InputMode) -> anyhow::Result<()> {
     let mut stdout = stdout();
     match source {
-        Some(p) => {
+        InputMode::File(p) => {
             init_terminal(&mut stdout)?;
             do_pager(BufReader::new(std::fs::File::open(p)?))
         },
-        None => {
+        InputMode::Stdin => {
             let input = stdin();
             init_terminal(&mut stdout)?;
             do_pager(input.lock())

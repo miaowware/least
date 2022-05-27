@@ -17,5 +17,5 @@ exclude = [
 
 [dependencies]
 anyhow = "1.0.43"
-clap = "2.33.3"
+clap = {version="3.1.18", features=["derive"]}
 crossterm = "0.21.0"

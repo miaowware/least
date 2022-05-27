@@ -4,9 +4,10 @@
 // Released under the terms of the BSD 3-Clause license.
 
 use std::io::{Read, copy, stdin, stdout};
-use std::path::Path;
 
 use anyhow;
+
+use crate::InputMode;
 
 fn stream_it_til_theres_none<T: Read>(mut input: T) -> anyhow::Result<()> {
     let mut stdout = stdout();
@@ -15,13 +16,9 @@ fn stream_it_til_theres_none<T: Read>(mut input: T) -> anyhow::Result<()> {
 }
 
 /// **Passthrough entrypoint**
-pub fn run(source: Option<&Path>) -> anyhow::Result<()> {
+pub fn run(source: InputMode) -> anyhow::Result<()> {
     match source {
-        Some(p) => {
-            stream_it_til_theres_none(std::fs::File::open(p)?)
-        },
-        None => {
-            stream_it_til_theres_none(stdin())
-        }
+        InputMode::File(p) => stream_it_til_theres_none(std::fs::File::open(p)?),
+        InputMode::Stdin => stream_it_til_theres_none(stdin()),
     }
 }
