@@ -1,21 +1,16 @@
-name: Dependency Security Audit
+name: Dependency Review
 on:
-  schedule:
-    - cron: '0 0 * * *'
-  push:
-    paths:
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
+  - pull_request
+
+permissions:
+  contents: read
+
 jobs:
   audit:
-    name: Dependency Security Audit
+    name: Dependency Review
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - uses: actions-rs/audit-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v1

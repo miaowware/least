@@ -2,7 +2,6 @@
 
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
@@ -11,7 +10,7 @@ name: Create Release
 jobs:
   publish:
     name: Publish Release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
         with:
@@ -32,7 +31,7 @@ jobs:
   release:
     needs: publish
     name: Create Release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
