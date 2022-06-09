@@ -3,7 +3,10 @@
 // Copyright 2021 classabbyamp, 0x5c
 // Released under the terms of the BSD 3-Clause license.
 
-use std::{cmp, usize};
+use std::{
+    cmp, io::{BufReader, BufRead}, fs::File,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 pub enum Direction {
     Up,
@@ -19,6 +22,11 @@ pub struct PagerBuffer {
     pub row: usize,
     // index of the leftmost column of the current screen
     pub col: usize,
+    // target line number for the reader thread
+    // TODO: wrap this for platforms without atomics
+    pub target: Arc<AtomicUsize>,
+    // if the input end has been reached
+    pub reached_eof: bool,
 }
 
 impl PagerBuffer {
@@ -92,6 +100,37 @@ impl PagerBuffer {
                 text
             },
         }
+    }
+
+    /// Sets the target to the appropriate value based on terminal height
+    /// For performance reasons, only call this when scrolling downwards
+    pub fn update_target(&mut self, term_height: u16) -> &mut Self {
+        if self.reached_eof {
+            return self;
+        }
+        let readahead = self.len() + ((term_height as usize) * 4);
+        self.target.fetch_max(readahead, std::sync::atomic::Ordering::Relaxed);
+        self
+    }
+}
+
+impl Default for PagerBuffer {
+    fn default() -> Self {
+        Self{
+            lines: vec![], row: 0, col: 0,
+            reached_eof: false, target: Arc::new(AtomicUsize::new(0))
+        }
+    }
+}
+
+impl TryFrom<File> for PagerBuffer {
+    type Error = anyhow::Error;
+
+    fn try_from(file: File) -> Result<Self, Self::Error> {
+        let buffered = BufReader::new(file);
+        // TODO: Byebye unwrap (also, non-utf8 input)
+        let lines = buffered.lines().map(|x| x.unwrap_or(String::new())).collect();
+        Ok(Self{lines, reached_eof: true, ..Default::default()})
     }
 }
 

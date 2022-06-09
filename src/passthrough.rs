@@ -7,7 +7,7 @@ use std::io::{Read, copy, stdin, stdout};
 
 use anyhow;
 
-use crate::InputMode;
+use crate::BufferSource;
 
 fn stream_it_til_theres_none<T: Read>(mut input: T) -> anyhow::Result<()> {
     let mut stdout = stdout();
@@ -16,9 +16,9 @@ fn stream_it_til_theres_none<T: Read>(mut input: T) -> anyhow::Result<()> {
 }
 
 /// **Passthrough entrypoint**
-pub fn run(source: InputMode) -> anyhow::Result<()> {
+pub fn run(source: BufferSource) -> anyhow::Result<()> {
     match source {
-        InputMode::File(p) => stream_it_til_theres_none(std::fs::File::open(p)?),
-        InputMode::Stdin => stream_it_til_theres_none(stdin()),
+        BufferSource::File(p) => stream_it_til_theres_none(std::fs::File::open(p)?),
+        BufferSource::Stdin => stream_it_til_theres_none(stdin()),
     }
 }

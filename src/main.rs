@@ -24,13 +24,13 @@ mod buffer;
 mod events;
 
 #[derive(PartialEq)]
-pub enum InputMode {
+pub enum BufferSource {
     Stdin,
     File(std::path::PathBuf),
 }
 
 // to allow for parsing via clap
-impl From<&OsStr> for InputMode {
+impl From<&OsStr> for BufferSource {
     fn from(raw: &OsStr) -> Self {
         match raw {
             x if x == OsStr::new("-") => Self::Stdin,
@@ -53,7 +53,7 @@ struct Cli {
     no_page: bool,
     /// File to display. Use - or leave empty to read from stdin
     #[clap(parse(from_os_str), default_value = "-")]
-    file: InputMode
+    file: BufferSource
 }
 
 fn main() {
@@ -61,7 +61,7 @@ fn main() {
 
     // Handling for least being called in stdin mode without a pipe.
     // Otherwise, `least -` on the terminal will cause complete lockup.
-    if cli.file == InputMode::Stdin && stdin().is_tty() {
+    if cli.file == BufferSource::Stdin && stdin().is_tty() {
         eprintln!("Missing input or filename. See 'least --help' for more info.");
         std::process::exit(1);
     }
@@ -69,12 +69,7 @@ fn main() {
     // Calling the pager or the passtrough.
     let res = match cli.no_page {
         true => passthrough::run(cli.file),
-        false => {
-            let r = pager::run(cli.file);
-            let mut stdout = std::io::stdout();
-            pager::deinit_terminal(&mut stdout);
-            r
-        },
+        false => pager::run(cli.file),
     };
 
     // Main error handling logic
